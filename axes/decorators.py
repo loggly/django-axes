@@ -39,12 +39,12 @@ VERBOSE = getattr(settings, 'AXES_VERBOSE', True)
 # whitelist and blacklist
 # todo: convert the strings to IPv4 on startup to avoid type conversion during processing
 ONLY_WHITELIST = getattr(settings, 'AXES_ONLY_ALLOW_WHITELIST', False)
-IP_WHITELIST = getattr(settings, 'AXES_IP_WHITELIST', None)
-IP_BLACKLIST = getattr(settings, 'AXES_IP_BLACKLIST', None)
+IP_WHITELIST = getattr(settings, 'AXES_IP_WHITELIST', ())
+IP_BLACKLIST = getattr(settings, 'AXES_IP_BLACKLIST', ())
 
 def get_lockout_url():
     return getattr(settings, 'AXES_LOCKOUT_URL', None)
-    
+
 def query2str(items):
     """Turns a dictionary into an easy-to-read list of key-value pairs.
 
@@ -59,16 +59,10 @@ def query2str(items):
     return '\n'.join(kvs)
 
 def ip_in_whitelist(ip):
-    if IP_WHITELIST is not None:
-        return ip in IP_WHITELIST
-    else:
-        return False
+    return ip in IP_WHITELIST
 
 def ip_in_blacklist(ip):
-    if IP_BLACKLIST is not None:
-        return ip in IP_BLACKLIST
-    else:
-        return False
+    return ip in IP_BLACKLIST
 
 log = logging.getLogger(LOGGER)
 if VERBOSE:
@@ -82,16 +76,12 @@ def get_user_attempts(request):
     """
     ip = request.META.get('REMOTE_ADDR', '')
     username = request.POST.get('username', None)
-        
+
+    filter_dict = {'ip_address': ip, 'username': username, 'trusted': True}
     if USE_USER_AGENT:
         ua = request.META.get('HTTP_USER_AGENT', '<unknown>')
-        attempts = AccessAttempt.objects.filter(
-            user_agent=ua, ip_address=ip, username=username, trusted=True
-        )
-    else:
-        attempts = AccessAttempt.objects.filter(
-            ip_address=ip, username=username, trusted=True
-        )
+        filter_dict['user_agent'] = ua
+    attempts = AccessAttempt.objects.filter(**filter_dict)
 
     if len(attempts) == 0:
         if USE_USER_AGENT:
